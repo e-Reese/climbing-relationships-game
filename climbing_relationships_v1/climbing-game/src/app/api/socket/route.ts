@@ -16,7 +16,7 @@ const generateRandomKey = () => {
 };
 
 // Socket.io server handler
-export async function GET(req: NextRequest, res: NextResponse) {
+export async function GET(req: NextRequest) {
   if (!process.env.NEXT_PUBLIC_SOCKET_SERVER_URL) {
     return NextResponse.json(
       { error: 'Socket server URL not configured' },
