@@ -22,6 +22,8 @@ const GameBoard: React.FC = () => {
   
   const [currentTime, setCurrentTime] = useState<number>(0);
   const animationRef = useRef<number | null>(null);
+  const [climber1Moving, setClimber1Moving] = useState<boolean>(false);
+  const [climber2Moving, setClimber2Moving] = useState<boolean>(false);
   
   // Debug logging
   useEffect(() => {
@@ -80,6 +82,44 @@ const GameBoard: React.FC = () => {
       }
     }
   }, [isSequenceActive, sequenceStartTime]);
+  
+  // Track climber position changes
+  const prevClimber1Y = useRef(climber1Position.y);
+  const prevClimber2Y = useRef(climber2Position.y);
+  
+  useEffect(() => {
+    // Check if climber 1 has moved up
+    if (climber1Position.y < prevClimber1Y.current) {
+      console.log("Climber 1 moved up from", prevClimber1Y.current, "to", climber1Position.y);
+      setClimber1Moving(true);
+      
+      // Reset the animation state after animation completes
+      const timer = setTimeout(() => {
+        setClimber1Moving(false);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    prevClimber1Y.current = climber1Position.y;
+  }, [climber1Position.y]);
+  
+  useEffect(() => {
+    // Check if climber 2 has moved up
+    if (climber2Position.y < prevClimber2Y.current) {
+      console.log("Climber 2 moved up from", prevClimber2Y.current, "to", climber2Position.y);
+      setClimber2Moving(true);
+      
+      // Reset the animation state after animation completes
+      const timer = setTimeout(() => {
+        setClimber2Moving(false);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    prevClimber2Y.current = climber2Position.y;
+  }, [climber2Position.y]);
   
   // Game over screen
   if (isGameOver) {
@@ -151,6 +191,8 @@ const GameBoard: React.FC = () => {
         <p>currentTime: {currentTime}</p>
         <p>keySequence length: {keySequence.length}</p>
         <p>keyPresses length: {keyPresses.length}</p>
+        <p>Climber 1 position: x={climber1Position.x}, y={climber1Position.y}</p>
+        <p>Climber 2 position: x={climber2Position.x}, y={climber2Position.y}</p>
       </div>
       
       {/* Mountain and Climbers */}
@@ -161,25 +203,49 @@ const GameBoard: React.FC = () => {
         </div>
         
         {/* Climber 1 */}
-        <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
-             style={{ 
-               backgroundImage: "url('/assets/Climber1_v1.png')",
-               left: `${climber1Position.x}%`,
-               top: `${climber1Position.y}%`,
-               transform: 'translate(-50%, -50%)',
-               transition: 'top 1s ease-out'
-             }}>
+        <div 
+          className={`absolute w-14 h-14 bg-contain bg-center bg-no-repeat ${climber1Moving ? 'animate-bounce' : ''}`}
+          style={{ 
+            backgroundImage: "url('/assets/Climber1_v1.png')",
+            left: `${climber1Position.x}%`,
+            top: `${climber1Position.y}%`,
+            transform: 'translate(-50%, -50%)',
+            transition: 'top 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy animation
+            filter: climber1Moving 
+              ? 'drop-shadow(0 0 12px rgba(34, 197, 94, 0.9))' // Green glow when moving
+              : playerNumber === 1 
+                ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))' // Blue highlight for player 1
+                : 'none'
+          }}>
+          {/* Movement indicator */}
+          {climber1Moving && (
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-green-500 font-bold animate-pulse">
+              ↑↑↑
+            </div>
+          )}
         </div>
         
         {/* Climber 2 */}
-        <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
-             style={{ 
-               backgroundImage: "url('/assets/Climber2_v1.png')",
-               left: `${climber2Position.x}%`,
-               top: `${climber2Position.y}%`,
-               transform: 'translate(-50%, -50%)',
-               transition: 'top 1s ease-out'
-             }}>
+        <div 
+          className={`absolute w-14 h-14 bg-contain bg-center bg-no-repeat ${climber2Moving ? 'animate-bounce' : ''}`}
+          style={{ 
+            backgroundImage: "url('/assets/Climber2_v1.png')",
+            left: `${climber2Position.x}%`,
+            top: `${climber2Position.y}%`,
+            transform: 'translate(-50%, -50%)',
+            transition: 'top 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy animation
+            filter: climber2Moving 
+              ? 'drop-shadow(0 0 12px rgba(34, 197, 94, 0.9))' // Green glow when moving
+              : playerNumber === 2 
+                ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))' // Blue highlight for player 2
+                : 'none'
+          }}>
+          {/* Movement indicator */}
+          {climber2Moving && (
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-green-500 font-bold animate-pulse">
+              ↑↑↑
+            </div>
+          )}
         </div>
       </div>
       
