@@ -16,6 +16,11 @@ interface Score {
   correctKeys: number;
 }
 
+interface ClimberPosition {
+  x: number;
+  y: number;
+}
+
 interface GameContextType {
   gameId: string | null;
   playerNumber: number | null;
@@ -30,6 +35,8 @@ interface GameContextType {
   keyPresses: KeyPress[];
   sequenceStartTime: number | null;
   isSequenceActive: boolean;
+  climber1Position: ClimberPosition;
+  climber2Position: ClimberPosition;
   joinGame: (gameId: string) => void;
   createGame: () => void;
   recordKeyPress: (key: string) => void;
@@ -51,6 +58,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [keyPresses, setKeyPresses] = useState<KeyPress[]>([]);
   const [sequenceStartTime, setSequenceStartTime] = useState<number | null>(null);
   const [isSequenceActive, setIsSequenceActive] = useState<boolean>(false);
+  const [climber1Position, setClimber1Position] = useState<ClimberPosition>({ x: 25, y: 90 });
+  const [climber2Position, setClimber2Position] = useState<ClimberPosition>({ x: 75, y: 90 });
 
   // Debug logging for state changes
   useEffect(() => {
@@ -94,7 +103,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     // Turn result
-    socket.on('turn-result', ({ player, score, totalScore, nextPlayer, keySequence }) => {
+    socket.on('turn-result', ({ player, score, totalScore, nextPlayer, keySequence, climber1Pos, climber2Pos, isGameOver }) => {
       console.log('Turn result:', player, score, nextPlayer);
       if (socket.id === player) {
         setLastScore(score);
@@ -109,6 +118,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Update turn and key sequence
       setIsYourTurn(socket.id === nextPlayer);
       setKeySequence(keySequence);
+      
+      // Update climber positions
+      if (climber1Pos) setClimber1Position(climber1Pos);
+      if (climber2Pos) setClimber2Position(climber2Pos);
+      
+      // Check if game is over (both climbers reached the top)
+      if (isGameOver) {
+        setIsGameOver(true);
+      }
     });
 
     // Player disconnected
@@ -190,6 +208,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     keyPresses,
     sequenceStartTime,
     isSequenceActive,
+    climber1Position,
+    climber2Position,
     joinGame,
     createGame,
     recordKeyPress,

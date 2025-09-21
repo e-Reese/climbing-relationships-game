@@ -14,6 +14,8 @@ const GameBoard: React.FC = () => {
     isGameOver,
     isSequenceActive,
     sequenceStartTime,
+    climber1Position,
+    climber2Position,
     recordKeyPress,
     startSequence
   } = useGame();
@@ -83,8 +85,37 @@ const GameBoard: React.FC = () => {
   if (isGameOver) {
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
-        <h2 className="text-2xl font-bold mb-4">Game Over</h2>
-        <p className="mb-6">The other player has disconnected.</p>
+        <h2 className="text-2xl font-bold mb-4">Congratulations!</h2>
+        <p className="mb-6">Both climbers reached the top of the mountain!</p>
+        
+        {/* Mountain with climbers at the top */}
+        <div className="relative w-full h-64 mb-6">
+          {/* Mountain background */}
+          <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" 
+               style={{ backgroundImage: "url('/assets/Mountain_v1.png')" }}>
+          </div>
+          
+          {/* Climber 1 at top left */}
+          <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
+               style={{ 
+                 backgroundImage: "url('/assets/Climber1_v1.png')",
+                 left: '25%',
+                 top: '10%',
+                 transform: 'translate(-50%, -50%)' 
+               }}>
+          </div>
+          
+          {/* Climber 2 at top right */}
+          <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
+               style={{ 
+                 backgroundImage: "url('/assets/Climber2_v1.png')",
+                 left: '75%',
+                 top: '10%',
+                 transform: 'translate(-50%, -50%)' 
+               }}>
+          </div>
+        </div>
+        
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -120,6 +151,36 @@ const GameBoard: React.FC = () => {
         <p>currentTime: {currentTime}</p>
         <p>keySequence length: {keySequence.length}</p>
         <p>keyPresses length: {keyPresses.length}</p>
+      </div>
+      
+      {/* Mountain and Climbers */}
+      <div className="relative w-full h-64 mb-6">
+        {/* Mountain background */}
+        <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" 
+             style={{ backgroundImage: "url('/assets/Mountain_v1.png')" }}>
+        </div>
+        
+        {/* Climber 1 */}
+        <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
+             style={{ 
+               backgroundImage: "url('/assets/Climber1_v1.png')",
+               left: `${climber1Position.x}%`,
+               top: `${climber1Position.y}%`,
+               transform: 'translate(-50%, -50%)',
+               transition: 'top 1s ease-out'
+             }}>
+        </div>
+        
+        {/* Climber 2 */}
+        <div className="absolute w-12 h-12 bg-contain bg-center bg-no-repeat" 
+             style={{ 
+               backgroundImage: "url('/assets/Climber2_v1.png')",
+               left: `${climber2Position.x}%`,
+               top: `${climber2Position.y}%`,
+               transform: 'translate(-50%, -50%)',
+               transition: 'top 1s ease-out'
+             }}>
+        </div>
       </div>
       
       {/* Turn Status and Begin Button */}

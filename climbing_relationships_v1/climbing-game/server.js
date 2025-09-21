@@ -57,7 +57,10 @@ app.prepare().then(() => {
           players: [],
           currentPlayerIndex: 0,
           keySequence: keySequence,
-          scores: [0, 0]
+          scores: [0, 0],
+          climber1Position: { x: 25, y: 90 }, // Start at bottom left of mountain
+          climber2Position: { x: 75, y: 90 }, // Start at bottom right of mountain
+          isGameOver: false
         };
         games.set(gameId, newGame);
         console.log('Created new game:', gameId, 'with sequence:', JSON.stringify(keySequence));
@@ -115,19 +118,38 @@ app.prepare().then(() => {
         // Store the score
         game.scores[playerIndex] += score.points;
         
-        // Switch turns
-        game.currentPlayerIndex = (game.currentPlayerIndex + 1) % 2;
+        // Move climber based on player number (0 = player 1, 1 = player 2)
+        const moveAmount = Math.min(10, 5 + (score.correctKeys * 1)); // Move 5-10 units based on performance
         
-        // Generate new key sequence
-        game.keySequence = generateKeySequence();
+        if (playerIndex === 0) {
+          // Move player 1's climber
+          game.climber1Position.y = Math.max(10, game.climber1Position.y - moveAmount);
+        } else {
+          // Move player 2's climber
+          game.climber2Position.y = Math.max(10, game.climber2Position.y - moveAmount);
+        }
+        
+        // Check if both climbers reached the top
+        const bothReachedTop = game.climber1Position.y <= 10 && game.climber2Position.y <= 10;
+        game.isGameOver = bothReachedTop;
+        
+        // Switch turns if game not over
+        if (!game.isGameOver) {
+          game.currentPlayerIndex = (game.currentPlayerIndex + 1) % 2;
+          // Generate new key sequence
+          game.keySequence = generateKeySequence();
+        }
         
         // Emit result to all players in the game
         io.to(gameId).emit('turn-result', {
           player: socket.id,
           score: score,
           totalScore: game.scores[playerIndex],
-          nextPlayer: game.players[game.currentPlayerIndex],
-          keySequence: game.keySequence
+          nextPlayer: game.isGameOver ? null : game.players[game.currentPlayerIndex],
+          keySequence: game.keySequence,
+          climber1Pos: game.climber1Position,
+          climber2Pos: game.climber2Position,
+          isGameOver: game.isGameOver
         });
         
         console.log('Turn completed, next player:', game.players[game.currentPlayerIndex]);
@@ -153,7 +175,10 @@ app.prepare().then(() => {
             players: game.players,
             currentPlayerIndex: game.currentPlayerIndex,
             keySequence: game.keySequence,
-            scores: game.scores
+            scores: game.scores,
+            climber1Position: game.climber1Position,
+            climber2Position: game.climber2Position,
+            isGameOver: game.isGameOver
           }
         });
       } else {
