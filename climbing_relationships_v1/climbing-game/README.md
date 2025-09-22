@@ -1,108 +1,72 @@
-# Guitar Hero Style Keyboard Challenge
+# Climbing Relationships Game
 
-A two-player online rhythm game built with Next.js and Socket.io where players take turns pressing keys in sequence with precise timing.
+A multiplayer climbing game where two players work together to climb a mountain by completing rhythm-based challenges.
 
-## Game Rules
+## Features
 
-1. Two players connect to the same game room
-2. Players take turns playing through a sequence of 5 keys
-3. When it's your turn, press the "Begin" button to start the sequence
-4. Keys appear on a Guitar Hero style track and move toward the hit line
-5. Players must press the correct keys when they reach the bottom of the track
-6. After completing a sequence, the player receives a grade (S, A, B, C, D, F) based on accuracy and timing
-7. Points are awarded based on performance, and it becomes the other player's turn
-8. The game continues until one player disconnects
+- Real-time multiplayer gameplay using Server-Sent Events (SSE)
+- Rhythm-based gameplay mechanics
+- Visual climbing progress on a shared mountain
+- Turn-based gameplay with 10 total moves (5 per player)
+- Deployed as a single Vercel application
 
-## Scoring System
+## Technology Stack
 
-- **Timing Accuracy:**
-  - Perfect (< 100ms): 100 points
-  - Great (< 200ms): 75 points
-  - Good (< 300ms): 50 points
-  - OK (< 500ms): 25 points
-  - Poor (≥ 500ms): 10 points
+- **Frontend**: Next.js, React, TypeScript, TailwindCSS
+- **Backend**: Next.js Edge API Routes with Server-Sent Events (SSE)
+- **Deployment**: Vercel
 
-- **Grades:**
-  - S: 95-100% accuracy
-  - A: 90-94% accuracy
-  - B: 80-89% accuracy
-  - C: 70-79% accuracy
-  - D: 60-69% accuracy
-  - F: Below 60% accuracy
-
-## Technologies Used
-
-- Next.js
-- TypeScript
-- Socket.io for real-time communication
-- Tailwind CSS for styling
-
-## Getting Started
+## Development
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
+- Node.js 18+ and npm
 
-### Installation
+### Setup
 
 1. Clone the repository
+2. Install dependencies:
+
 ```bash
-git clone <repository-url>
 cd climbing-game
-```
-
-2. Install dependencies
-```bash
 npm install
-# or
-yarn install
 ```
 
-### Running the Game
+3. Start the development server:
 
-1. Start the development server:
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-2. Open [http://localhost:3000](http://localhost:3000) in your browser
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### How to Play
+## Deployment
 
-1. The first player creates a game and gets a game ID
-2. They share this game ID with the second player
-3. The second player enters the game ID to join
-4. Once both players are connected, the game starts
-5. The first player will see a "Begin" button - click it to start your turn
-6. A sequence of 5 keys will appear on the track
-7. Press each key as it reaches the bottom of the track (hit line)
-8. After completing the sequence, you'll receive a grade and score
-9. Then it's the other player's turn - they'll need to press their "Begin" button
-10. The game continues until one player disconnects
+This application is designed to be deployed as a single Vercel application. The game uses Server-Sent Events (SSE) instead of WebSockets to enable deployment on Vercel's serverless platform.
 
-## Controls
+### Deploying to Vercel
 
-The game uses the following keys:
-- A, S, D, F, G
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
+2. Import the project in the Vercel dashboard
+3. Deploy!
 
-## Debug Information
+## How to Play
 
-The game includes a debug panel showing:
-- Whether it's your turn
-- Whether the sequence is active
-- The current timing information
-- Number of keys in the sequence
-- Number of keys pressed so far
+1. One player creates a game and shares the game ID with another player
+2. The second player joins using the game ID
+3. Players take turns pressing arrow keys in the rhythm shown on screen
+4. After each successful turn, a player's climber moves up the mountain
+5. The game ends when both climbers reach the top or after 10 total moves
 
-## Future Improvements
+## Game Architecture
 
-- Add more lanes and keys for increased difficulty
-- Implement different difficulty levels
-- Add custom songs and note patterns
-- Create a multiplayer scoreboard
-- Add sound effects and music
-- Implement user authentication
-- Add mobile support with touch controls
+- **Edge API Routes**: Handle game state and player actions
+- **Server-Sent Events (SSE)**: Provide real-time updates to clients
+- **In-memory Game State**: Stores game data (can be replaced with Vercel KV for production)
+- **React Context**: Manages client-side game state and UI updates
+
+## Notes
+
+- In a production environment, consider using Vercel KV or another persistent storage solution instead of in-memory game state
+- The game currently supports only two players per game
+- Games are automatically cleaned up when both players disconnect

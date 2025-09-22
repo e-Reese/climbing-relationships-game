@@ -5,16 +5,84 @@ import { useGame } from '@/context/GameContext';
 import GameBoard from './GameBoard';
 
 const GameLobby: React.FC = () => {
-  const { gameId, isConnected, isGameStarted, createGame, joinGame } = useGame();
+  const { gameId, isConnected, isGameStarted, connectionError, createGame, joinGame } = useGame();
   const [gameIdInput, setGameIdInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // If not connected to socket server yet
+  const handleCreateGame = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const newGameId = await createGame();
+      if (!newGameId) {
+        setError('Failed to create game. Please try again.');
+      }
+    } catch (err) {
+      setError('An error occurred while creating the game.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJoinGame = async () => {
+    if (!gameIdInput.trim()) {
+      setError('Please enter a valid game ID');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const success = await joinGame(gameIdInput.trim());
+      if (!success) {
+        setError('Failed to join game. Please check the game ID and try again.');
+      }
+    } catch (err) {
+      setError('An error occurred while joining the game.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // If not connected to server yet
   if (!isConnected) {
     return (
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-        <h2 className="text-2xl font-bold text-center mb-6">Connecting to server...</h2>
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <h2 className="text-2xl font-bold text-center mb-4">
+          {connectionError ? 'Connection Issue' : 'Connecting to server...'}
+        </h2>
+        
+        <div className="mb-6">
+          {connectionError && (
+            <div className="p-4 bg-red-100 border border-red-300 rounded-lg text-red-700 mb-4">
+              <p className="font-bold mb-1">Connection status:</p>
+              <p className="text-sm">{connectionError}</p>
+            </div>
+          )}
+          
+          <div className="flex flex-col items-center my-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-gray-600">Attempting to connect...</p>
+          </div>
+          
+          <div className="text-sm text-gray-700 mb-4">
+            <p className="mb-2">If connection persists:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>The server may still be starting up</li>
+              <li>Check if you're connected to the internet</li>
+              <li>Try refreshing the page</li>
+            </ul>
+          </div>
+          
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Refresh Page
+          </button>
         </div>
       </div>
     );
@@ -56,12 +124,21 @@ const GameLobby: React.FC = () => {
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
       <h2 className="text-2xl font-bold text-center mb-6">Join or Create a Game</h2>
       
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 mb-4">
+          {error}
+        </div>
+      )}
+      
       <div className="mb-6">
         <button
-          className="w-full py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          onClick={createGame}
+          className={`w-full py-3 ${
+            isLoading ? 'bg-blue-300' : 'bg-blue-500 hover:bg-blue-600'
+          } text-white rounded-lg transition-colors`}
+          onClick={handleCreateGame}
+          disabled={isLoading}
         >
-          Create New Game
+          {isLoading ? 'Creating...' : 'Create New Game'}
         </button>
       </div>
       
@@ -85,15 +162,18 @@ const GameLobby: React.FC = () => {
           value={gameIdInput}
           onChange={(e) => setGameIdInput(e.target.value)}
           placeholder="Enter game ID"
+          disabled={isLoading}
         />
       </div>
       
       <button
-        className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-        onClick={() => joinGame(gameIdInput)}
-        disabled={!gameIdInput}
+        className={`w-full py-3 ${
+          isLoading || !gameIdInput ? 'bg-green-300' : 'bg-green-500 hover:bg-green-600'
+        } text-white rounded-lg transition-colors`}
+        onClick={handleJoinGame}
+        disabled={isLoading || !gameIdInput}
       >
-        Join Game
+        {isLoading ? 'Joining...' : 'Join Game'}
       </button>
     </div>
   );

@@ -1,0 +1,20 @@
+{
+  "name": "climbing-game-socket-server",
+  "version": "1.0.0",
+  "description": "Socket.io server for the climbing relationships game",
+  "main": "socket-server.js",
+  "scripts": {
+    "start": "node socket-server.js",
+    "dev": "nodemon socket-server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

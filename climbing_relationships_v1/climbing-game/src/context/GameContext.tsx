@@ -1,8 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Socket } from 'socket.io-client';
-import { useSocket } from '@/hooks/useSocket';
+import { useGameEvents } from '@/hooks/useGameEvents';
 
 interface KeyPress {
   key: string;
@@ -11,9 +10,9 @@ interface KeyPress {
 
 interface Score {
   points: number;
-  grade: string;
-  accuracy: number;
-  correctKeys: number;
+  grade?: string;
+  accuracy?: number[];
+  correctKeys?: number;
 }
 
 interface ClimberPosition {
@@ -21,24 +20,30 @@ interface ClimberPosition {
   y: number;
 }
 
+interface KeySequence {
+  keys: string[];
+  timing: number[];
+}
+
 interface GameContextType {
   gameId: string | null;
   playerNumber: number | null;
   isYourTurn: boolean;
-  keySequence: KeyPress[];
+  keySequence: KeySequence | null;
   lastScore: Score | null;
   totalScore: number;
   isGameStarted: boolean;
   isGameOver: boolean;
-  socket: Socket | null;
   isConnected: boolean;
-  keyPresses: KeyPress[];
+  connectionError: string | null;
+  keyPresses: number[];
   sequenceStartTime: number | null;
   isSequenceActive: boolean;
   climber1Position: ClimberPosition;
   climber2Position: ClimberPosition;
-  joinGame: (gameId: string) => void;
-  createGame: () => void;
+  turnCount: number;
+  joinGame: (gameId: string) => Promise<boolean>;
+  createGame: () => Promise<string | null>;
   recordKeyPress: (key: string) => void;
   startSequence: () => void;
 }
@@ -46,20 +51,129 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { socket, isConnected } = useSocket();
-  const [gameId, setGameId] = useState<string | null>(null);
+  // Game state
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
   const [isYourTurn, setIsYourTurn] = useState<boolean>(false);
-  const [keySequence, setKeySequence] = useState<KeyPress[]>([]);
+  const [keySequence, setKeySequence] = useState<KeySequence | null>(null);
   const [lastScore, setLastScore] = useState<Score | null>(null);
   const [totalScore, setTotalScore] = useState<number>(0);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
-  const [keyPresses, setKeyPresses] = useState<KeyPress[]>([]);
+  const [keyPresses, setKeyPresses] = useState<number[]>([]);
   const [sequenceStartTime, setSequenceStartTime] = useState<number | null>(null);
   const [isSequenceActive, setIsSequenceActive] = useState<boolean>(false);
   const [climber1Position, setClimber1Position] = useState<ClimberPosition>({ x: 25, y: 90 });
   const [climber2Position, setClimber2Position] = useState<ClimberPosition>({ x: 75, y: 90 });
+  const [turnCount, setTurnCount] = useState<number>(0);
+
+  // Set up event handlers
+  const handleConnected = (data: any) => {
+    console.log('Connected to SSE:', data);
+  };
+
+  const handleGameStart = (data: any) => {
+    console.log('Game started, received key sequence:', data.keySequence);
+    setIsGameStarted(true);
+    setKeySequence(data.keySequence);
+    setIsYourTurn(data.playerId === data.currentPlayer);
+    
+    // Determine player number based on the players array
+    const playerIndex = data.players.indexOf(data.playerId);
+    setPlayerNumber(playerIndex + 1); // 1-based player number (1 or 2)
+  };
+
+  const handleTurnResult = (data: any) => {
+    const { 
+      player, 
+      score, 
+      totalScore, 
+      nextPlayer, 
+      keySequence, 
+      climber1Pos, 
+      climber2Pos, 
+      turnCount: serverTurnCount, 
+      moveCount, 
+      isGameOver: gameOver 
+    } = data;
+    
+    console.log('Turn result:', player, score, nextPlayer, `Move: ${moveCount}/10`);
+    
+    if (player === gameEvents.playerId) {
+      setLastScore(score);
+      setTotalScore(totalScore);
+    }
+    
+    // Reset sequence state
+    setIsSequenceActive(false);
+    setSequenceStartTime(null);
+    setKeyPresses([]);
+    
+    // Update turn and key sequence
+    setIsYourTurn(gameEvents.playerId === nextPlayer);
+    setKeySequence(keySequence);
+    
+    // Update move count
+    if (moveCount !== undefined) {
+      console.log(`%c UPDATING MOVE COUNT: ${moveCount}/10`, 
+                'background: yellow; color: black; padding: 3px; font-weight: bold;');
+      setTurnCount(moveCount);
+    } else if (serverTurnCount !== undefined) {
+      const estimatedMoveCount = serverTurnCount * 2;
+      console.log(`%c ESTIMATING MOVE COUNT: ${estimatedMoveCount}/10 (from game turn: ${serverTurnCount}/5)`, 
+                'background: orange; color: black; padding: 3px; font-weight: bold;');
+      setTurnCount(estimatedMoveCount);
+    }
+    
+    // Update climber positions
+    if (climber1Pos) {
+      const oldY = climber1Position.y;
+      const newY = climber1Pos.y;
+      const hasChanged = oldY !== newY;
+      
+      console.log('%c UPDATING CLIMBER 1 POSITION:', 'background: blue; color: white; padding: 3px;', {
+        from: oldY,
+        to: newY,
+        changed: hasChanged,
+        moveAmount: hasChanged ? Math.abs(oldY - newY) : 0
+      });
+      
+      setClimber1Position(() => ({
+        x: climber1Pos.x,
+        y: newY
+      }));
+    }
+    
+    if (climber2Pos) {
+      const oldY = climber2Position.y;
+      const newY = climber2Pos.y;
+      const hasChanged = oldY !== newY;
+      
+      console.log('%c UPDATING CLIMBER 2 POSITION:', 'background: purple; color: white; padding: 3px;', {
+        from: oldY,
+        to: newY,
+        changed: hasChanged,
+        moveAmount: hasChanged ? Math.abs(oldY - newY) : 0
+      });
+      
+      setClimber2Position(() => ({
+        x: climber2Pos.x,
+        y: newY
+      }));
+    }
+    
+    // Check if game is over
+    if (gameOver) {
+      setIsGameOver(true);
+    }
+  };
+
+  // Initialize game events
+  const gameEvents = useGameEvents({
+    onConnected: handleConnected,
+    onGameStart: handleGameStart,
+    onTurnResult: handleTurnResult,
+    onError: (error) => console.error('Game event error:', error)
+  });
 
   // Debug logging for state changes
   useEffect(() => {
@@ -67,108 +181,20 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isYourTurn,
       isSequenceActive,
       sequenceStartTime,
-      keySequence: keySequence.length
+      keySequence: keySequence ? keySequence.keys.length : 0
     });
   }, [isYourTurn, isSequenceActive, sequenceStartTime, keySequence]);
 
-  // Set up socket event listeners
-  useEffect(() => {
-    if (!socket) return;
-
-    // Game joined successfully
-    socket.on('game-joined', ({ gameId, playerNumber, isYourTurn }) => {
-      console.log('Game joined:', gameId, playerNumber, isYourTurn);
-      setGameId(gameId);
-      setPlayerNumber(playerNumber);
-      setIsYourTurn(isYourTurn);
-    });
-
-    // Game created successfully
-    socket.on('game-created', ({ gameId }) => {
-      console.log('Game created:', gameId);
-      setGameId(gameId);
-    });
-
-    // Game is full
-    socket.on('game-full', () => {
-      alert('Game is full. Please try another game ID.');
-    });
-
-    // Game starts
-    socket.on('game-start', ({ keySequence, currentPlayer }) => {
-      console.log('Game started, received key sequence:', keySequence);
-      setIsGameStarted(true);
-      setKeySequence(keySequence);
-      setIsYourTurn(socket.id === currentPlayer);
-    });
-
-    // Turn result
-    socket.on('turn-result', ({ player, score, totalScore, nextPlayer, keySequence, climber1Pos, climber2Pos, isGameOver }) => {
-      console.log('Turn result:', player, score, nextPlayer);
-      if (socket.id === player) {
-        setLastScore(score);
-        setTotalScore(totalScore);
-      }
-      
-      // Reset sequence state
-      setIsSequenceActive(false);
-      setSequenceStartTime(null);
-      setKeyPresses([]);
-      
-      // Update turn and key sequence
-      setIsYourTurn(socket.id === nextPlayer);
-      setKeySequence(keySequence);
-      
-      // Update climber positions
-      if (climber1Pos) setClimber1Position(climber1Pos);
-      if (climber2Pos) setClimber2Position(climber2Pos);
-      
-      // Check if game is over (both climbers reached the top)
-      if (isGameOver) {
-        setIsGameOver(true);
-      }
-    });
-
-    // Player disconnected
-    socket.on('player-disconnected', () => {
-      setIsGameOver(true);
-      alert('The other player has disconnected.');
-    });
-
-    return () => {
-      socket.off('game-joined');
-      socket.off('game-created');
-      socket.off('game-full');
-      socket.off('game-start');
-      socket.off('turn-result');
-      socket.off('player-disconnected');
-    };
-  }, [socket]);
-
   // Check if sequence is complete
   useEffect(() => {
-    if (isSequenceActive && keyPresses.length === keySequence.length && keySequence.length > 0) {
+    if (isSequenceActive && keySequence && keyPresses.length === keySequence.keys.length && keySequence.keys.length > 0) {
       console.log('Sequence complete, sending to server');
       // Sequence is complete, send to server
-      if (socket && gameId) {
-        socket.emit('sequence-complete', { gameId, keyPresses });
+      if (gameEvents.gameId) {
+        gameEvents.completeSequence(keyPresses);
       }
     }
-  }, [keyPresses, keySequence, isSequenceActive, socket, gameId]);
-
-  // Join an existing game
-  const joinGame = (gameId: string) => {
-    if (socket && isConnected) {
-      socket.emit('join-game', gameId);
-    }
-  };
-
-  // Create a new game
-  const createGame = () => {
-    if (socket && isConnected) {
-      socket.emit('create-game');
-    }
-  };
+  }, [keyPresses, keySequence, isSequenceActive, gameEvents]);
 
   // Start the sequence - simplified for the Begin button
   const startSequence = () => {
@@ -186,16 +212,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Record a key press during the sequence
   const recordKeyPress = (key: string) => {
-    if (isSequenceActive && sequenceStartTime && keyPresses.length < keySequence.length) {
+    if (isSequenceActive && sequenceStartTime && keySequence && keyPresses.length < keySequence.keys.length) {
       const timing = Date.now() - sequenceStartTime;
       console.log('Recording key press:', key, 'at timing:', timing);
-      const newKeyPress: KeyPress = { key, timing };
-      setKeyPresses((prev) => [...prev, newKeyPress]);
+      setKeyPresses((prev) => [...prev, timing]);
     }
   };
 
-  const contextValue = {
-    gameId,
+  const contextValue: GameContextType = {
+    gameId: gameEvents.gameId,
     playerNumber,
     isYourTurn,
     keySequence,
@@ -203,15 +228,16 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     totalScore,
     isGameStarted,
     isGameOver,
-    socket,
-    isConnected,
+    isConnected: gameEvents.isConnected,
+    connectionError: gameEvents.connectionError,
     keyPresses,
     sequenceStartTime,
     isSequenceActive,
     climber1Position,
     climber2Position,
-    joinGame,
-    createGame,
+    turnCount,
+    joinGame: gameEvents.joinGame,
+    createGame: gameEvents.createGame,
     recordKeyPress,
     startSequence,
   };
